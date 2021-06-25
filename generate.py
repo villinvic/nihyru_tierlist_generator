@@ -1,21 +1,38 @@
 import pandas as pd
 import numpy as np
 from itertools import combinations
+import os
+import sys
 
 class Generate:
 
     tiers = 'F E D C B A S'.split()
     tier_thresholds = np.array([0, 20, 30, 40, 50, 60, 90], dtype=np.float32) * 0.01
 
-    def __init__(self, input_path):
+    def __init__(self):
+        pass
 
-        self.input_path = input_path
-        #self.input_ = pd.read_excel(input_path, engine='odf')
+    def init_from_txt(self, input_path=None):
+        if input_path is None:
+            print('List input file name :')
+            print('--> ', end='')
+            sys.stdout.flush()
+            input_path = input()
 
+        assert input_path is not None, 'No input ?'
 
-    def init_from_txt(self):
-        output_path = self.input_path.replace('.txt', '.ods')
-        with open(self.input_path) as f:
+        assert '.txt' in input_path, 'Input must be a txt file'
+
+        output_path = input_path.replace('.txt', '.ods')
+
+        c = 2
+        output_path_base = output_path
+        while os.path.isfile(output_path):
+
+            output_path = output_path_base.replace('.ods', '') + str(c) + '.ods'
+            c += 1
+
+        with open(input_path) as f:
             full_data = f.readlines()
 
         full_data = list(filter(lambda x :  x!='' and x!='\n', full_data))
@@ -26,33 +43,39 @@ class Generate:
                       'Y' : matchups[: , 1],
                       'Odds for X': np.full(len(matchups), fill_value=50.)}
 
-        formatted['Odds for X'] = np.random.uniform(0, 100, len(matchups))
-
         df = pd.DataFrame(data=formatted, columns=list(formatted.keys()))
 
         with pd.ExcelWriter(output_path, engine='odf') as writer:
             df.to_excel(writer, sheet_name='Matchups')
 
 
-    @staticmethod
-    def fuzzy_classifier(score):
-        for threshold, name in Generate.tier_limits:
-            if score*50 < threshold * Generate.scale:
-                return name
-
-        return 'S'
-
     # main generate function
-    def __call__(self):
-        with open(self.input_path) as f:
+    def __call__(self, list_path, ods_path):
+
+        if list_path is None:
+            print('List input file name :')
+            print('--> ', end='')
+            sys.stdout.flush()
+            list_path = input()
+
+        if ods_path is None:
+            print('ods input file name :')
+            print('--> ', end='')
+            sys.stdout.flush()
+            ods_path = input()
+
+        assert '.ods' in ods_path, 'Ods Input must be an ods file'
+        assert '.txt' in list_path, 'list Input must be a txt file'
+
+
+        with open(list_path) as f:
             full_data = f.readlines()
 
-        output_path = self.input_path.replace('.txt', '.ods')
+        output_path = ods_path
 
         char_scores = { x.strip('\n'):1. for x in filter(lambda x :  x!='' and x!='\n', full_data)}
 
-        self.input_path = self.input_path.replace('.txt', '.ods')
-        df = pd.read_excel(self.input_path, engine='odf')
+        df = pd.read_excel(ods_path, engine='odf')
 
         for i in range(df.shape[0]):
             x, y, odds = df['X'][i], df['Y'][i], df['Odds for X'][i]
@@ -78,8 +101,6 @@ class Generate:
             scores = np.delete(scores, argwhere)
             chars = np.delete(chars, argwhere)
 
-        print(tier_members)
-
         max_tier_size = 0
         for tier in tier_members:
             if len(tier)> max_tier_size:
@@ -96,21 +117,12 @@ class Generate:
 
         columns = [np.array(column) for column in columns]
 
-
-        #for char, score in char_scores.items():
-        #    tier_members[self.tier_to_index[self.fuzzy_classifier(score)]].append(char)
-
-        #print(tier_members)
-
-
         data = {
             'Tiers' : list(reversed(self.tiers)),
         }
         data.update({
             i: column for i, column in enumerate(columns)
         })
-
-        print(data)
 
         df_tier_list = pd.DataFrame(data=data, columns=list(data.keys()))
 
