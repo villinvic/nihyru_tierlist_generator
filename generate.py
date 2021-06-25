@@ -50,7 +50,7 @@ class Generate:
 
 
     # main generate function
-    def __call__(self, list_path, ods_path):
+    def __call__(self, list_path=None, ods_path=None):
 
         if list_path is None:
             print('List input file name :')
